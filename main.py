@@ -375,16 +375,46 @@ async def predict_generic(request: PredictionRequest):
             1        # growth_stage
         ]).reshape(1, -1)
         
-        # Basit tahminler
+        # DÜZELTME: Dinamik büyüme tahminleri
         predictions = {}
+        base_prediction = weight_model.predict(features)[0]
+        
+        # Hayvan türüne göre büyüme oranları (aylık kg artış)
+        growth_rates = {
+            'İnek': 15.0,    # İnekler aylık ~15kg büyür
+            'At': 20.0,      # Atlar aylık ~20kg büyür  
+            'Koyun': 3.0,    # Koyunlar aylık ~3kg büyür
+            'Keçi': 2.5,     # Keçiler aylık ~2.5kg büyür
+            'Domuz': 12.0    # Domuzlar aylık ~12kg büyür
+        }
+        
+        growth_rate = growth_rates.get(request.animal_type, 10.0)
+        
         for months in [3, 6, 12]:
-            # Yaş artışını simüle et
-            future_features = features.copy()
-            future_features[0, 2] += months * 30  # yaş_gun artışı
+            # Dinamik büyüme hesabı
+            if request.age_years < 2:  # Genç hayvanlar daha hızlı büyür
+                age_factor = 1.5
+            elif request.age_years < 4:  # Orta yaş
+                age_factor = 1.0  
+            else:  # Yaşlı hayvanlar yavaş büyür
+                age_factor = 0.3
             
-            # Tahmin yap
-            predicted_weight = weight_model.predict(future_features)[0]
-            predicted_weight = max(predicted_weight, request.current_weight)
+            # Mevsimsel faktör (yaz aylarında daha iyi büyüme)
+            seasonal_factor = 1.1
+            
+            # Sağlık faktörü
+            health_factor = 1.0
+            if request.health_status == 'Mükemmel':
+                health_factor = 1.2
+            elif request.health_status == 'Kötü':
+                health_factor = 0.7
+            
+            # Toplam ağırlık artışı
+            weight_gain = growth_rate * months * age_factor * seasonal_factor * health_factor
+            predicted_weight = request.current_weight + weight_gain
+            
+            # Gerçekçi sınırlar
+            predicted_weight = max(predicted_weight, request.current_weight + months * 2)
             
             predictions[f"{months}_month"] = round(predicted_weight, 1)
         
