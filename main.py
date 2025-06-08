@@ -355,16 +355,24 @@ async def predict_generic(request: PredictionRequest):
     try:
         print(f"🔮 Generic tahmin: {request.animal_type}, {request.current_weight}kg, {request.age_years} yaş")
         
-        # Basic feature vector oluştur
+        # Feature sayısını model ile eşleştir (16 feature gerekli)
         features = np.array([
-            request.current_weight,
-            request.current_height,
-            request.age_years * 365,  # yaş_gun
+            request.current_weight,      # kilo
+            request.current_height,      # boy
+            request.age_years * 365,     # yas_gun
             1 if request.gender.lower() == 'erkek' else 0,  # cinsiyet_encoded
             3 if request.health_status == 'Mükemmel' else 2 if request.health_status == 'İyi' else 1,  # saglik_encoded
-            25.0,  # sicaklik (ortalama)
-            60.0,  # nem (ortalama)
-            1,     # mevsim_encoded (bahar)
+            25.0,    # sicaklik
+            60.0,    # nem
+            1,       # mevsim_encoded
+            request.age_years * 12,      # yasAy (ay cinsinden)
+            1,       # tur_encoded (varsayılan)
+            25.0,    # ortalama_sicaklik
+            60.0,    # ortalama_nem
+            1,       # popular_months
+            1,       # seasonal_factor
+            1,       # age_category
+            1        # growth_stage
         ]).reshape(1, -1)
         
         # Basit tahminler
